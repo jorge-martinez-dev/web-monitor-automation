@@ -31,8 +31,11 @@ def guardar_estado(valor):
         archivo.write(valor)
 
 def leer_estado():
-    with open("estado.txt", "r", encoding="utf-8") as archivo:
-        return archivo.read()        
+    try:
+        with open("estado.txt", "r", encoding="utf-8") as archivo:
+            return archivo.read()
+    except FileNotFoundError:
+        return "" 
 
 contenido = abrir_pagina("https://example.com")
 
