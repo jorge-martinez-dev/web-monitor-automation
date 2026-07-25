@@ -1,7 +1,8 @@
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 
-
+from monitor import detectar_cambio
+from notifier import notificar_cambio
 def abrir_pagina(url):
     with sync_playwright() as playwright:
         navegador = playwright.chromium.launch(headless=False)
@@ -44,8 +45,9 @@ print("Párrafo:", parrafo)
 print("Enlace:", enlace)
 estado_anterior = leer_estado()
 print("Estado anterior:", estado_anterior)
-if titulo == estado_anterior:
-    print("No hubo cambios")
+if detectar_cambio(titulo, estado_anterior):
+    notificar_cambio(estado_anterior, titulo)
 else:
-    print("El contenido cambió")
+    print("No hubo cambios")
+
 guardar_estado(titulo)
