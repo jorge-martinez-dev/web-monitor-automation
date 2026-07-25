@@ -1,0 +1,6 @@
+URL = "https://example.com"
+SELECTOR = "h1"
+
+INTERVALO_SEGUNDOS = 60
+MAX_REINTENTOS = 3
+ESPERA_REINTENTO = 10
