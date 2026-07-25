@@ -16,17 +16,36 @@ def abrir_pagina(url):
         return html
 
 
-def extraer_texto_principal(html):
+def extraer_texto(html, selector):
     sopa = BeautifulSoup(html, "html.parser")
-    elemento = sopa.find("h1")
+    elemento = sopa.select_one(selector)
 
     if elemento is None:
         return None
 
     return elemento.get_text(strip=True)
 
+def guardar_estado(valor):
+    with open("estado.txt", "w", encoding="utf-8") as archivo:
+        archivo.write(valor)
+
+def leer_estado():
+    with open("estado.txt", "r", encoding="utf-8") as archivo:
+        return archivo.read()        
 
 contenido = abrir_pagina("https://example.com")
-texto_principal = extraer_texto_principal(contenido)
 
-print(texto_principal)
+titulo = extraer_texto(contenido, "h1")
+parrafo = extraer_texto(contenido, "p")
+enlace = extraer_texto(contenido, "a")
+
+print("Título:", titulo)
+print("Párrafo:", parrafo)
+print("Enlace:", enlace)
+estado_anterior = leer_estado()
+print("Estado anterior:", estado_anterior)
+if titulo == estado_anterior:
+    print("No hubo cambios")
+else:
+    print("El contenido cambió")
+guardar_estado(titulo)
