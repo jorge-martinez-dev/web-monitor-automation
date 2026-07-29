@@ -1,28 +1,36 @@
 import time
 
-from scraper import abrir_pagina, extraer_texto, leer_estado, guardar_estado
-from monitor import detectar_cambio
-from notifier import notificar_cambio
+from playwright.sync_api import sync_playwright
+
 from config import (
-    URL,
-    SELECTOR,
+    MONITORES,
     INTERVALO_SEGUNDOS,
     MAX_REINTENTOS,
     ESPERA_REINTENTO,
 )
+from monitor import detectar_cambio
+from notifier import notificar_cambio
+from scraper import obtener_html, extraer_texto
+from storage import guardar_estado, leer_estado
 
 
-def ejecutar_monitor():
+def revisar_monitor(pagina, configuracion):
+    nombre = configuracion["nombre"]
+    url = configuracion["url"]
+    selector = configuracion["selector"]
+
+    print(f"\nRevisando monitor: {nombre}")
+
     for intento in range(1, MAX_REINTENTOS + 1):
         try:
-            contenido = abrir_pagina(URL)
-            valor_actual = extraer_texto(contenido, SELECTOR)
+            html = obtener_html(pagina, url)
+            valor_actual = extraer_texto(html, selector)
 
             if valor_actual is None:
-                print(f"No se encontró el selector: {SELECTOR}")
+                print(f"No se encontró el selector: {selector}")
                 return
 
-            valor_anterior = leer_estado()
+            valor_anterior = leer_estado(nombre)
 
             print("Valor actual:", valor_actual)
             print("Valor anterior:", valor_anterior)
@@ -32,7 +40,7 @@ def ejecutar_monitor():
             else:
                 print("No hubo cambios")
 
-            guardar_estado(valor_actual)
+            guardar_estado(nombre, valor_actual)
             return
 
         except Exception as error:
@@ -40,25 +48,46 @@ def ejecutar_monitor():
             print(error)
 
             if intento < MAX_REINTENTOS:
-                print(f"Reintentando en {ESPERA_REINTENTO} segundos...")
+                print(
+                    f"Reintentando en "
+                    f"{ESPERA_REINTENTO} segundos..."
+                )
                 time.sleep(ESPERA_REINTENTO)
             else:
-                print("No fue posible completar la revisión.")
+                print("No fue posible completar esta revisión.")
+
+
+def ejecutar_monitores(pagina):
+    for configuracion in MONITORES:
+        revisar_monitor(pagina, configuracion)
+
+
+def iniciar_aplicacion():
+    with sync_playwright() as playwright:
+        navegador = playwright.chromium.launch(headless=False)
+        contexto = navegador.new_context()
+        pagina = contexto.new_page()
+
+        print("Monitor iniciado. Presiona Ctrl + C para detenerlo.")
+
+        try:
+            while True:
+                ejecutar_monitores(pagina)
+
+                print(
+                    f"\nPróxima revisión en "
+                    f"{INTERVALO_SEGUNDOS} segundos.\n"
+                )
+
+                time.sleep(INTERVALO_SEGUNDOS)
+
+        except KeyboardInterrupt:
+            print("\nMonitor detenido por el usuario.")
+
+        finally:
+            contexto.close()
+            navegador.close()
 
 
 if __name__ == "__main__":
-    print("Monitor iniciado. Presiona Ctrl + C para detenerlo.")
-
-    try:
-        while True:
-            ejecutar_monitor()
-
-            print(
-                f"Próxima revisión en "
-                f"{INTERVALO_SEGUNDOS} segundos.\n"
-            )
-
-            time.sleep(INTERVALO_SEGUNDOS)
-
-    except KeyboardInterrupt:
-        print("\nMonitor detenido por el usuario.")
+    iniciar_aplicacion()
