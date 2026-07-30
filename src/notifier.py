@@ -11,8 +11,10 @@ RUTA_ENV = RUTA_PROYECTO / ".env"
 load_dotenv(RUTA_ENV)
 
 
-def notificar_cambio(valor_anterior, valor_actual):
+def notificar_cambio(nombre, url, valor_anterior, valor_actual):
     print("Cambio detectado")
+    print("Monitor:", nombre)
+    print("URL:", url)
     print("Valor anterior:", valor_anterior)
     print("Valor actual:", valor_actual)
 
@@ -21,11 +23,12 @@ def notificar_cambio(valor_anterior, valor_actual):
 
     if not token or not chat_id:
         print("No se configuraron las variables de Telegram.")
-        print(f"Archivo buscado: {RUTA_ENV}")
         return
 
     mensaje = (
         "🚨 Cambio detectado por el monitor\n\n"
+        f"Monitor: {nombre}\n"
+        f"URL: {url}\n\n"
         f"Valor anterior: {valor_anterior or '(vacío)'}\n"
         f"Valor actual: {valor_actual}"
     )
