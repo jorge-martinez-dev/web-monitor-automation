@@ -1,7 +1,9 @@
+import msvcrt
 from datetime import date
 
 from playwright.sync_api import (
     Error as PlaywrightError,
+    Page,
     Response,
     sync_playwright,
 )
@@ -15,6 +17,54 @@ ERROR_RESPUESTA_EXPIRADA = "No resource with given identifier found"
 ERROR_NAVEGADOR_CERRADO = (
     "Target page, context or browser has been closed"
 )
+
+
+def obtener_sede_seleccionada(pagina: Page) -> str | None:
+    sede = pagina.evaluate(
+        """
+        () => {
+            const selects = Array.from(
+                document.querySelectorAll("select")
+            );
+
+            const obtenerOpcion = (select) =>
+                select.options[select.selectedIndex] || null;
+
+            const selectSede = selects.find((select) =>
+                Array.from(select.attributes).some((atributo) =>
+                    `${atributo.name} ${atributo.value}`
+                        .toLowerCase()
+                        .includes("headquarter")
+                )
+            );
+
+            const opcionSede = selectSede
+                ? obtenerOpcion(selectSede)
+                : null;
+
+            if (opcionSede?.textContent?.trim()) {
+                return opcionSede.textContent.trim();
+            }
+
+            const opcionUnidad = selects
+                .map(obtenerOpcion)
+                .find((opcion) =>
+                    opcion?.textContent
+                        ?.trim()
+                        .toUpperCase()
+                        .startsWith("U.M.")
+                );
+
+            return opcionUnidad?.textContent?.trim() || null;
+        }
+        """
+    )
+
+    if not isinstance(sede, str):
+        return None
+
+    sede_limpia = " ".join(sede.split())
+    return sede_limpia or None
 
 
 def escuchar_disponibilidad() -> None:
@@ -65,7 +115,14 @@ def escuchar_disponibilidad() -> None:
             return
 
         ultimo_resultado = resultado_actual
+
+        try:
+            sede = obtener_sede_seleccionada(pagina)
+        except PlaywrightError:
+            sede = None
+
         print()
+        print("Sede detectada:", sede or "(no identificada)")
 
         if not fechas:
             print("SICT: no hay fechas disponibles.")
@@ -96,13 +153,29 @@ def escuchar_disponibilidad() -> None:
 
             print("Escucha de solo lectura iniciada.")
             print("Realiza manualmente una consulta de sede en Chrome.")
-            print("Presiona Ctrl + C para detener el programa.")
+            print("Presiona Q para detener el programa.")
 
             while True:
-                pagina.wait_for_timeout(1_000)
+                pagina.wait_for_timeout(500)
 
-    except KeyboardInterrupt:
-        print("\nEscucha detenida.")
+                if not msvcrt.kbhit():
+                    continue
+
+                tecla = msvcrt.getwch().lower()
+
+                if tecla == "q":
+                    break
+
+            try:
+                pagina.remove_listener(
+                    "response",
+                    manejar_respuesta,
+                )
+                pagina.wait_for_timeout(250)
+            except (PlaywrightError, RuntimeError):
+                pass
+
+            print("\nEscucha detenida.")
 
     except PlaywrightError as error:
         if ERROR_NAVEGADOR_CERRADO in str(error):
