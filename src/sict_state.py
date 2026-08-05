@@ -76,7 +76,7 @@ def deserializar_fechas(valor: str) -> tuple[str, ...]:
     return normalizar_fechas(valor.splitlines())
 
 
-def actualizar_estado_sict(
+def analizar_estado_sict(
     sede: str,
     fechas: Iterable[str],
 ) -> ResultadoEstadoSict:
@@ -96,12 +96,6 @@ def actualizar_estado_sict(
 
     cambio_detectado = fechas_actuales != fechas_anteriores
 
-    if cambio_detectado:
-        guardar_estado(
-            clave_estado,
-            serializar_fechas(fechas_actuales),
-        )
-
     return ResultadoEstadoSict(
         clave_estado=clave_estado,
         fechas_anteriores=fechas_anteriores,
@@ -109,3 +103,26 @@ def actualizar_estado_sict(
         fechas_nuevas=fechas_nuevas,
         cambio_detectado=cambio_detectado,
     )
+
+
+def confirmar_estado_sict(
+    resultado: ResultadoEstadoSict,
+) -> bool:
+    if not resultado.cambio_detectado:
+        return False
+
+    guardar_estado(
+        resultado.clave_estado,
+        serializar_fechas(resultado.fechas_actuales),
+    )
+
+    return True
+
+
+def actualizar_estado_sict(
+    sede: str,
+    fechas: Iterable[str],
+) -> ResultadoEstadoSict:
+    resultado = analizar_estado_sict(sede, fechas)
+    confirmar_estado_sict(resultado)
+    return resultado

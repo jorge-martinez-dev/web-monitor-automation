@@ -11,7 +11,9 @@ sys.path.insert(0, str(RUTA_SRC))
 
 
 from sict_state import (  # noqa: E402
+    analizar_estado_sict,
     actualizar_estado_sict,
+    confirmar_estado_sict,
     crear_clave_estado,
     normalizar_fechas,
 )
@@ -81,6 +83,66 @@ class TestSictState(unittest.TestCase):
             "sict_u_m_bombas"
         )
 
+        guardar_estado_mock.assert_called_once_with(
+            "sict_u_m_bombas",
+            "2026-08-06\n2026-08-07\n2026-08-10",
+        )
+
+    @patch("sict_state.guardar_estado")
+    @patch(
+        "sict_state.leer_estado",
+        return_value="2026-08-06\n2026-08-07",
+    )
+    def test_analiza_estado_sin_guardarlo(
+        self,
+        leer_estado_mock,
+        guardar_estado_mock,
+    ):
+        resultado = analizar_estado_sict(
+            "U.M. BOMBAS",
+            [
+                "2026-08-06",
+                "2026-08-07",
+                "2026-08-10",
+            ],
+        )
+
+        self.assertTrue(resultado.cambio_detectado)
+        self.assertEqual(
+            resultado.fechas_nuevas,
+            ("2026-08-10",),
+        )
+
+        leer_estado_mock.assert_called_once_with(
+            "sict_u_m_bombas"
+        )
+        guardar_estado_mock.assert_not_called()
+
+    @patch("sict_state.guardar_estado")
+    @patch(
+        "sict_state.leer_estado",
+        return_value="2026-08-06\n2026-08-07",
+    )
+    def test_confirma_un_estado_analizado(
+        self,
+        leer_estado_mock,
+        guardar_estado_mock,
+    ):
+        resultado = analizar_estado_sict(
+            "U.M. BOMBAS",
+            [
+                "2026-08-06",
+                "2026-08-07",
+                "2026-08-10",
+            ],
+        )
+
+        confirmado = confirmar_estado_sict(resultado)
+
+        self.assertTrue(confirmado)
+        leer_estado_mock.assert_called_once_with(
+            "sict_u_m_bombas"
+        )
         guardar_estado_mock.assert_called_once_with(
             "sict_u_m_bombas",
             "2026-08-06\n2026-08-07\n2026-08-10",
