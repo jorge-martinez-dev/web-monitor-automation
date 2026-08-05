@@ -10,6 +10,7 @@ from playwright.sync_api import (
 
 from sict_adapter import extraer_fechas_disponibles
 from sict_session import CDP_URL, buscar_pagina_sict
+from sict_state import actualizar_estado_sict
 
 
 RUTA_LIVEWIRE = "/livewire/update"
@@ -68,7 +69,9 @@ def obtener_sede_seleccionada(pagina: Page) -> str | None:
 
 
 def escuchar_disponibilidad() -> None:
-    ultimo_resultado: tuple[str, ...] | None = None
+    ultimo_resultado: (
+        tuple[str, tuple[str, ...]] | None
+    ) = None
 
     def manejar_respuesta(respuesta: Response) -> None:
         nonlocal ultimo_resultado
@@ -109,28 +112,70 @@ def escuchar_disponibilidad() -> None:
 
             return
 
-        resultado_actual = tuple(fechas)
+        try:
+            sede = obtener_sede_seleccionada(pagina)
+        except PlaywrightError:
+            sede = None
+
+        identificador_sede = sede or "(no identificada)"
+        resultado_actual = (
+            identificador_sede,
+            tuple(fechas),
+        )
 
         if resultado_actual == ultimo_resultado:
             return
 
         ultimo_resultado = resultado_actual
 
-        try:
-            sede = obtener_sede_seleccionada(pagina)
-        except PlaywrightError:
-            sede = None
-
         print()
-        print("Sede detectada:", sede or "(no identificada)")
+        print("Sede detectada:", identificador_sede)
+
+        if sede is None:
+            print(
+                "No se guardó el estado porque la sede "
+                "no pudo identificarse."
+            )
+
+            if not fechas:
+                print("SICT: no hay fechas disponibles.")
+                return
+
+            print("SICT: fechas disponibles detectadas:")
+
+            for fecha in fechas:
+                print(f"- {fecha}")
+
+            return
+
+        try:
+            resultado_estado = actualizar_estado_sict(
+                sede,
+                fechas,
+            )
+        except (OSError, ValueError) as error:
+            print("No fue posible actualizar el estado de la sede:")
+            print(error)
+            return
+
+        print("Estado:", resultado_estado.clave_estado)
 
         if not fechas:
             print("SICT: no hay fechas disponibles.")
             return
 
-        print("SICT: fechas disponibles detectadas:")
+        if not resultado_estado.cambio_detectado:
+            print("SICT: disponibilidad sin cambios.")
+            return
 
-        for fecha in fechas:
+        if not resultado_estado.fechas_nuevas:
+            print("SICT: disponibilidad actualizada.")
+            print("No aparecieron fechas nuevas.")
+            return
+
+        print("SICT: fechas nuevas detectadas:")
+
+        for fecha in resultado_estado.fechas_nuevas:
             print(f"- {fecha}")
 
     try:
