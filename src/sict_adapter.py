@@ -50,11 +50,6 @@ def extraer_lista_livewire(valor: Any) -> list[str]:
 
         fechas.append(fecha.isoformat())
 
-    if not fechas:
-        raise ValueError(
-            "No se encontraron fechas válidas."
-        )
-
     return sorted(set(fechas))
 
 

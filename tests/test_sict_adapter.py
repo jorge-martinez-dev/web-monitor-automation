@@ -88,7 +88,34 @@ class TestSictAdapter(unittest.TestCase):
                 "2026-08-10",
             ],
         )
+    def test_acepta_respuesta_sin_fechas(self):
+        snapshot = {
+            "data": {
+                "disabledDaysFilter": [
+                    [],
+                    {"s": "arr"},
+                ]
+            }
+        }
 
+        respuesta_livewire = json.dumps(
+            {
+                "components": [
+                    {
+                        "snapshot": json.dumps(
+                            snapshot
+                        )
+                    }
+                ]
+            }
+        )
+
+        resultado = extraer_fechas_disponibles(
+            respuesta_livewire,
+            fecha_minima=date(2026, 8, 5),
+        )
+
+        self.assertEqual(resultado, [])
     def test_rechaza_respuesta_invalida(self):
         with self.assertRaises(ValueError):
             extraer_fechas_candidatas(
