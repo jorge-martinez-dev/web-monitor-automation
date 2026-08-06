@@ -9,11 +9,12 @@ from playwright.sync_api import (
 )
 
 from sict_adapter import extraer_fechas_disponibles
+from sict_processor import procesar_disponibilidad_sict
 from sict_session import CDP_URL, buscar_pagina_sict
-from sict_state import actualizar_estado_sict
 
 
 RUTA_LIVEWIRE = "/livewire/update"
+URL_SICT = "https://citas.sct.gob.mx/"
 ERROR_RESPUESTA_EXPIRADA = "No resource with given identifier found"
 ERROR_NAVEGADOR_CERRADO = (
     "Target page, context or browser has been closed"
@@ -65,6 +66,10 @@ def obtener_sede_seleccionada(pagina: Page) -> str | None:
         return None
 
     sede_limpia = " ".join(sede.split())
+
+    if sede_limpia.casefold().startswith("seleccione"):
+        return None
+
     return sede_limpia or None
 
 
@@ -126,12 +131,12 @@ def escuchar_disponibilidad() -> None:
         if resultado_actual == ultimo_resultado:
             return
 
-        ultimo_resultado = resultado_actual
-
         print()
         print("Sede detectada:", identificador_sede)
 
         if sede is None:
+            ultimo_resultado = resultado_actual
+
             print(
                 "No se guardó el estado porque la sede "
                 "no pudo identificarse."
@@ -148,35 +153,14 @@ def escuchar_disponibilidad() -> None:
 
             return
 
-        try:
-            resultado_estado = actualizar_estado_sict(
-                sede,
-                fechas,
-            )
-        except (OSError, ValueError) as error:
-            print("No fue posible actualizar el estado de la sede:")
-            print(error)
-            return
+        procesado = procesar_disponibilidad_sict(
+            sede,
+            URL_SICT,
+            fechas,
+        )
 
-        print("Estado:", resultado_estado.clave_estado)
-
-        if not fechas:
-            print("SICT: no hay fechas disponibles.")
-            return
-
-        if not resultado_estado.cambio_detectado:
-            print("SICT: disponibilidad sin cambios.")
-            return
-
-        if not resultado_estado.fechas_nuevas:
-            print("SICT: disponibilidad actualizada.")
-            print("No aparecieron fechas nuevas.")
-            return
-
-        print("SICT: fechas nuevas detectadas:")
-
-        for fecha in resultado_estado.fechas_nuevas:
-            print(f"- {fecha}")
+        if procesado:
+            ultimo_resultado = resultado_actual
 
     try:
         with sync_playwright() as playwright:
